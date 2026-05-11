@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Reconstruction Engine | MST Solver</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0a0a0c;
+            --panel-bg: #121217;
+            --accent-color: #4a9eff;
+            --accent-glow: rgba(74, 158, 255, 0.3);
+            --danger-color: #ff4d4d;
+            --success-color: #4dff88;
+            --text-primary: #e8e6e0;
+            --text-secondary: #6b6960;
+            --border-color: #2a2a35;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 2rem 1.5rem;
+        }
+
+        .container { max-width: 1100px; margin: 0 auto; }
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 2rem;
+        }
+        .top-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            box-shadow: 0 0 10px rgba(77,255,136,0.4);
+        }
+        .top-label { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-secondary); font-weight: 500; }
+        .top-title { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--success-color); font-weight: 600; }
+
+        .hero { margin-bottom: 2.5rem; }
+        .hero h1 {
+            font-size: 36px; font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: #f0ede8; letter-spacing: -.02em;
+            line-height: 1.1; margin-bottom: 8px;
+        }
+        .hero p { font-size: 14px; color: var(--text-secondary); }
+
+        .input-panel {
+            background: var(--panel-bg);
+            border: 0.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .input-panel::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--success-color), transparent);
+            opacity: 0.3;
+        }
+
+        .input-label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; margin-bottom: 10px; }
+
+        .matrix-wrap { overflow-x: auto; margin-bottom: 1.5rem; }
+        .matrix-table { border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+        .matrix-table th {
+            background: #0d0d12;
+            color: var(--accent-color);
+            padding: 6px 10px;
+            border: 0.5px solid var(--border-color);
+            font-size: 10px; font-weight: 700;
+            text-align: center;
+        }
+        .matrix-table td {
+            padding: 5px 9px;
+            border: 0.5px solid var(--border-color);
+            text-align: center;
+            color: #9494a0;
+            cursor: pointer;
+            transition: background 0.15s;
+            min-width: 36px;
+        }
+        .matrix-table td:hover { background: rgba(74,158,255,0.07); }
+        .matrix-table td.no-conn { color: #2a2a35; }
+        .matrix-table td.selected-edge { background: rgba(77,255,136,0.12); color: var(--success-color); font-weight: 700; }
+        .matrix-table td.editable { background: transparent; }
+        .matrix-table input.cell-inp {
+            width: 34px; background: transparent; border: none;
+            color: #c8c4bb; font-family: 'JetBrains Mono', monospace;
+            font-size: 11px; text-align: center; outline: none;
+        }
+
+        .controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 1rem; }
+        .n-ctrl { display: flex; align-items: center; gap: 8px; }
+        .n-ctrl label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); font-weight: 600; }
+        .n-inp {
+            background: #0a0a0c; border: 0.5px solid var(--border-color);
+            border-radius: 6px; padding: 8px 12px;
+            font-size: 13px; color: #c8c4bb;
+            font-family: 'JetBrains Mono', monospace;
+            width: 64px; outline: none;
+        }
+        .n-inp:focus { border-color: var(--accent-color); }
+
+        .run-btn {
+            background: var(--success-color);
+            color: #000; border: none; border-radius: 8px;
+            padding: 12px 28px; font-size: 12px; font-weight: 700;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            letter-spacing: .04em; white-space: nowrap; transition: all 0.2s;
+        }
+        .run-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 15px rgba(77,255,136,0.3); }
+
+        .load-btn {
+            background: rgba(74,158,255,0.08); border: 0.5px solid var(--accent-color);
+            color: var(--accent-color); border-radius: 8px;
+            padding: 12px 20px; font-size: 12px; font-weight: 600;
+            cursor: pointer; font-family: 'Inter', sans-serif;
+            letter-spacing: .04em; white-space: nowrap; transition: all 0.2s;
+        }
+        .load-btn:hover { background: rgba(74,158,255,0.15); }
+
+        .metrics {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 12px; margin-bottom: 2.5rem;
+        }
+        .metric {
+            background: var(--panel-bg); border: 0.5px solid var(--border-color);
+            border-radius: 12px; padding: 1.5rem;
+        }
+        .metric-label { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .metric-value { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 600; color: #f0ede8; line-height: 1; }
+        .metric-value.success { color: var(--success-color); text-shadow: 0 0 15px rgba(77,255,136,0.2); }
+        .metric-value.small { font-size: 13px; color: #9c9890; line-height: 1.6; padding-top: 6px; }
+
+        .section-head {
+            font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+            color: var(--text-secondary); margin-bottom: 16px;
+            display: flex; align-items: center; gap: 12px; margin-top: 2rem;
+        }
+        .section-head::after { content: ''; flex: 1; height: .5px; background: var(--border-color); }
+
+        /* Graph Canvas */
+        .graph-panel {
+            background: var(--panel-bg);
+            border: 0.5px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+        #graph-canvas { width: 100%; display: block; border-radius: 8px; }
+
+        /* Kruskal Steps Table */
+        .steps-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11px; margin-bottom: 2.5rem; }
+        .steps-table th { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--text-secondary); padding: 10px 14px; border-bottom: 0.5px solid var(--border-color); text-align: left; }
+        .steps-table td { padding: 10px 14px; border-bottom: 0.5px solid #1a1a20; }
+        .steps-table tr:last-child td { border-bottom: none; }
+        .step-num { color: var(--text-secondary); width: 40px; }
+        .step-edge { color: #c8c4bb; }
+        .step-cost { color: var(--accent-color); font-weight: 700; }
+        .step-status-add { color: var(--success-color); font-weight: 700; }
+        .step-status-skip { color: var(--danger-color); font-weight: 600; }
+        .step-running { color: #f0ede8; font-weight: 700; text-align: right; }
+        .step-running.final { color: var(--success-color); font-size: 18px; text-shadow: 0 0 15px rgba(77,255,136,0.3); }
+
+        /* MST Edge Chips */
+        .edge-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 2rem; }
+        .edge-chip {
+            background: rgba(77,255,136,0.05);
+            border: .5px solid rgba(77,255,136,0.25);
+            border-radius: 6px; padding: 6px 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px; color: var(--success-color);
+        }
+
+        /* Binary panel */
+        .binary-panel {
+            background: var(--panel-bg);
+            border: 0.5px solid rgba(77,255,136,0.3);
+            border-radius: 12px; padding: 1.5rem;
+            margin-bottom: 2.5rem; text-align: center;
+            position: relative; overflow: hidden;
+        }
+        .binary-panel::before {
+            content: '';
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--success-color), transparent);
+            opacity: 0.5;
+        }
+        .binary-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 12px; }
+        .binary-value { font-family: 'JetBrains Mono', monospace; font-size: 40px; font-weight: 700; color: var(--success-color); letter-spacing: .12em; text-shadow: 0 0 20px rgba(77,255,136,0.4); }
+        .binary-sub { font-size: 13px; color: var(--text-secondary); margin-top: 8px; font-family: 'JetBrains Mono', monospace; }
+
+        .results { display: none; }
+        .results.show { display: block; animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .error { color: var(--danger-color); font-size: 12px; margin-top: 10px; font-family: 'JetBrains Mono', monospace; }
+
+        @media (max-width: 600px) {
+            .metrics { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="top-bar">
+        <div class="top-dot"></div>
+        <span class="top-label">Algorithm Engine</span>
+        <span style="color:#2a2a35">·</span>
+        <span class="top-title">Network Reconstruction (Level 2)</span>
+    </div>
+
+    <div class="hero">
+        <h1>Network Reconstruction Engine</h1>
+        <p>Minimum Spanning Tree (Kruskal's Algorithm) for smart-grid backbone restoration.</p>
+    </div>
+
+    <div class="input-panel">
+        <div class="controls" style="margin-bottom:1.2rem;">
+            <div class="n-ctrl">
+                <label>Nodes (N)</label>
+                <input class="n-inp" id="node-count" type="number" min="2" max="20" value="14" onchange="resizeMatrix()">
+            </div>
+            <button class="load-btn" onclick="loadPuzzle()">Load Level 2 Puzzle</button>
+            <button class="run-btn" onclick="run()">Reconstruct Network ↗</button>
+            <button id="level3-btn" class="load-btn" style="display:none; border-color: var(--success-color); color: var(--success-color);" onclick="goToLevel3()">Go to Level 3 ↗</button>
+        </div>
+        <div class="input-label">Weighted Connectivity Matrix (−1 = no direct connection)</div>
+        <div class="matrix-wrap">
+            <table class="matrix-table" id="matrix-table"></table>
+        </div>
+        <div class="error" id="error-msg"></div>
+    </div>
+
+    <div class="results" id="results">
+        <div class="metrics">
+            <div class="metric"><div class="metric-label">Stations</div><div class="metric-value" id="m-nodes">--</div></div>
+            <div class="metric"><div class="metric-label">MST Cost</div><div class="metric-value success" id="m-cost">--</div></div>
+            <div class="metric"><div class="metric-label">Edges Added</div><div class="metric-value" id="m-edges">--</div></div>
+        </div>
+
+        <div class="section-head">Network Graph Visualization</div>
+        <div class="graph-panel">
+            <canvas id="graph-canvas"></canvas>
+        </div>
+
+        <div class="section-head">Kruskal's Algorithm Trace</div>
+        <table class="steps-table" id="steps-table">
+            <thead><tr>
+                <th>#</th><th>Edge</th><th>Cost</th><th>Decision</th><th>Running Total</th>
+            </tr></thead>
+            <tbody id="steps-body"></tbody>
+        </table>
+
+        <div class="section-head">MST Edges Selected</div>
+        <div class="edge-grid" id="edge-grid"></div>
+
+        <div class="section-head">Unlock Code</div>
+        <div class="binary-panel">
+            <div class="binary-label">Total Restoration Cost → Binary</div>
+            <div class="binary-value" id="binary-val">--</div>
+            <div class="binary-sub" id="binary-sub">decimal: --</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- Puzzle Matrix (14×14) ---
+const PUZZLE = [
+    [ 0,  3,  9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [ 3,  0,  4, 10, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [ 9,  4,  0,  2, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, 10,  2,  0,  5, -1, -1, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1,  5,  0,  6, 11, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1,  6,  0,  3, -1, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, 11,  3,  0,  4, -1, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1,  4,  0,  2, -1, -1, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1,  2,  0,  5,  8, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1,  5,  0,  3, -1, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1,  8,  3,  0,  4, -1, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  4,  0,  2, -1],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  2,  0,  7],
+    [-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,  7,  0],
+];
+
+let n = 14;
+let matrix = [];
+
+function resizeMatrix() {
+    n = parseInt(document.getElementById('node-count').value) || 14;
+    n = Math.max(2, Math.min(20, n));
+    // Rebuild blank matrix
+    matrix = Array.from({length: n}, (_, i) => Array.from({length: n}, (_, j) => i === j ? 0 : -1));
+    renderMatrix();
+    document.getElementById('results').classList.remove('show');
+}
+
+function loadPuzzle() {
+    n = 14;
+    document.getElementById('node-count').value = 14;
+    matrix = PUZZLE.map(r => [...r]);
+    renderMatrix();
+    document.getElementById('results').classList.remove('show');
+    document.getElementById('error-msg').textContent = '';
+}
+
+function renderMatrix() {
+    const tbl = document.getElementById('matrix-table');
+    tbl.innerHTML = '';
+    // Header row
+    const hr = document.createElement('tr');
+    hr.innerHTML = '<th></th>';
+    for (let j = 0; j < n; j++) hr.innerHTML += `<th>${j}</th>`;
+    tbl.appendChild(hr);
+    // Data rows
+    for (let i = 0; i < n; i++) {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<th>${i}</th>`;
+        for (let j = 0; j < n; j++) {
+            const td = document.createElement('td');
+            const v = matrix[i][j];
+            const inp = document.createElement('input');
+            inp.className = 'cell-inp';
+            inp.value = v;
+            inp.dataset.i = i;
+            inp.dataset.j = j;
+            inp.addEventListener('change', function() {
+                let val = parseInt(this.value);
+                if (isNaN(val)) val = -1;
+                matrix[this.dataset.i][this.dataset.j] = val;
+                matrix[this.dataset.j][this.dataset.i] = val; // keep symmetric
+                renderMatrix();
+            });
+            if (v === -1) td.classList.add('no-conn');
+            else if (i === j) inp.style.color = 'var(--text-secondary)';
+            td.appendChild(inp);
+            tr.appendChild(td);
+        }
+        tbl.appendChild(tr);
+    }
+}
+
+// --- Union-Find ---
+function makeUF(n) {
+    const p = Array.from({length: n}, (_, i) => i);
+    const r = new Array(n).fill(0);
+    function find(x) { return p[x] === x ? x : (p[x] = find(p[x])); }
+    function union(a, b) {
+        a = find(a); b = find(b);
+        if (a === b) return false;
+        if (r[a] < r[b]) [a, b] = [b, a];
+        p[b] = a;
+        if (r[a] === r[b]) r[a]++;
+        return true;
+    }
+    return { find, union };
+}
+
+// --- Kruskal's ---
+function kruskal(mat, n) {
+    const edges = [];
+    for (let i = 0; i < n; i++)
+        for (let j = i + 1; j < n; j++)
+            if (mat[i][j] > 0) edges.push({ u: i, v: j, w: mat[i][j] });
+    edges.sort((a, b) => a.w - b.w);
+
+    const uf = makeUF(n);
+    const mstEdges = [];
+    const steps = [];
+    let total = 0;
+
+    for (const e of edges) {
+        const added = uf.union(e.u, e.v);
+        if (added) {
+            total += e.w;
+            mstEdges.push(e);
+        }
+        steps.push({ ...e, added, running: added ? total : total });
+    }
+    return { mstEdges, steps, total };
+}
+
+// --- Graph Drawing ---
+function drawGraph(mstEdges, n, mat) {
+    const canvas = document.getElementById('graph-canvas');
+    const W = canvas.parentElement.clientWidth - 32;
+    const H = Math.max(380, Math.min(520, W * 0.55));
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#0d0d12';
+    ctx.fillRect(0, 0, W, H);
+
+    // Node positions — circle layout
+    const cx = W / 2, cy = H / 2, R = Math.min(W, H) * 0.38;
+    const pos = Array.from({length: n}, (_, i) => {
+        const angle = (2 * Math.PI * i / n) - Math.PI / 2;
+        return { x: cx + R * Math.cos(angle), y: cy + R * Math.sin(angle) };
+    });
+
+    const mstSet = new Set(mstEdges.map(e => `${e.u}-${e.v}`));
+
+    // Draw all non-MST edges faintly
+    for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+            if (mat[i][j] > 0 && !mstSet.has(`${i}-${j}`)) {
+                ctx.beginPath();
+                ctx.moveTo(pos[i].x, pos[i].y);
+                ctx.lineTo(pos[j].x, pos[j].y);
+                ctx.strokeStyle = 'rgba(42,42,53,0.8)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+    }
+
+    // Draw MST edges
+    for (const e of mstEdges) {
+        const p1 = pos[e.u], p2 = pos[e.v];
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.lineTo(p2.x, p2.y);
+        ctx.strokeStyle = 'rgba(77,255,136,0.6)';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(77,255,136,0.4)';
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Edge weight label
+        const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+        ctx.fillStyle = '#4dff88';
+        ctx.font = 'bold 10px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(e.w, mx, my);
+    }
+
+    // Draw nodes
+    for (let i = 0; i < n; i++) {
+        const p = pos[i];
+        // Glow
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 18, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(74,158,255,0.08)';
+        ctx.fill();
+        // Circle
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 14, 0, 2 * Math.PI);
+        ctx.fillStyle = '#1a1a25';
+        ctx.strokeStyle = 'rgba(74,158,255,0.6)';
+        ctx.lineWidth = 1.5;
+        ctx.fill();
+        ctx.stroke();
+        // Label
+        ctx.fillStyle = '#e8e6e0';
+        ctx.font = 'bold 11px JetBrains Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(i, p.x, p.y);
+    }
+}
+
+// --- Main Run ---
+function run() {
+    const err = document.getElementById('error-msg');
+    err.textContent = '';
+
+    // Read matrix from inputs
+    const inputs = document.querySelectorAll('.cell-inp');
+    inputs.forEach(inp => {
+        const i = parseInt(inp.dataset.i), j = parseInt(inp.dataset.j);
+        let v = parseInt(inp.value);
+        if (isNaN(v)) v = -1;
+        matrix[i][j] = v;
+    });
+
+    const { mstEdges, steps, total } = kruskal(matrix, n);
+
+    if (mstEdges.length < n - 1) {
+        err.textContent = 'Graph is not fully connected — cannot form a spanning tree.';
+        return;
+    }
+
+    // Metrics
+    document.getElementById('m-nodes').textContent = n;
+    document.getElementById('m-cost').textContent = total;
+    document.getElementById('m-edges').textContent = mstEdges.length;
+
+    // Steps table
+    const tbody = document.getElementById('steps-body');
+    tbody.innerHTML = '';
+    let running = 0;
+    steps.forEach((s, idx) => {
+        if (s.added) running += s.w;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td class="step-num">${idx + 1}</td>
+            <td class="step-edge">Node ${s.u} ↔ Node ${s.v}</td>
+            <td class="step-cost">${s.w}</td>
+            <td class="${s.added ? 'step-status-add' : 'step-status-skip'}">${s.added ? '✓ ADD' : '✗ SKIP (cycle)'}</td>
+            <td class="step-running${s === steps[steps.length - 1] && s.added ? ' final' : ''}">${s.added ? running : '—'}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    // Edge chips
+    const egrid = document.getElementById('edge-grid');
+    egrid.innerHTML = '';
+    mstEdges.forEach(e => {
+        const chip = document.createElement('div');
+        chip.className = 'edge-chip';
+        chip.textContent = `${e.u} ↔ ${e.v}  [${e.w}]`;
+        egrid.appendChild(chip);
+    });
+
+    // Binary
+    const bin = total.toString(2);
+    document.getElementById('binary-val').textContent = bin;
+    document.getElementById('binary-sub').textContent = `decimal: ${total}`;
+
+    // Graph
+    document.getElementById('results').classList.add('show');
+    requestAnimationFrame(() => drawGraph(mstEdges, n, matrix));
+
+    // Highlight selected cells
+    document.querySelectorAll('.matrix-table td').forEach(td => td.classList.remove('selected-edge'));
+    mstEdges.forEach(e => {
+        const cells = document.querySelectorAll(`.cell-inp[data-i="${e.u}"][data-j="${e.v}"], .cell-inp[data-i="${e.v}"][data-j="${e.u}"]`);
+        cells.forEach(c => c.parentElement.classList.add('selected-edge'));
+    });
+
+    document.getElementById('level3-btn').style.display = 'inline-block';
+}
+
+function goToLevel3() {
+    window.location.href = `dependency_resolution.html?nodes=${n}`;
+}
+
+// Init
+window.onload = () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const nodesParam = urlParams.get('nodes');
+    
+    if (nodesParam) {
+        const nVal = parseInt(nodesParam);
+        if (!isNaN(nVal) && nVal >= 2 && nVal <= 20) {
+            document.getElementById('node-count').value = nVal;
+            // If it's 14, we can load the puzzle as a default, otherwise just resize
+            if (nVal === 14) {
+                loadPuzzle();
+                run();
+            } else {
+                resizeMatrix();
+            }
+        } else {
+            loadPuzzle();
+        }
+    } else {
+        loadPuzzle();
+    }
+};
+</script>
+</body>
+</html>
