@@ -242,6 +242,7 @@
             <button class="load-btn" onclick="loadPuzzle()">Load Level 2 Puzzle</button>
             <button class="run-btn" onclick="run()">Reconstruct Network ↗</button>
             <button id="level3-btn" class="load-btn" style="display:none; border-color: var(--success-color); color: var(--success-color);" onclick="goToLevel3()">Go to Level 3 ↗</button>
+            <button id="level4-btn" class="load-btn" style="border-color: #ff9e4a; color: #ff9e4a;" onclick="goToLevel4()">Go to Level 4 ↗</button>
         </div>
         <div class="input-label">Weighted Connectivity Matrix (−1 = no direct connection)</div>
         <div class="matrix-wrap">
@@ -554,6 +555,10 @@ function run() {
 
 function goToLevel3() {
     window.location.href = `dependency_resolution.html?nodes=${n}`;
+}
+
+function goToLevel4() {
+    window.location.href = `vital_energy.html`;
 }
 
 // Init

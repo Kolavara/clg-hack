@@ -234,6 +234,8 @@
         <div class="viz-container">
             <div class="step-display" id="step-display"></div>
         </div>
+
+        <button id="next-level-btn" class="next-level-btn" onclick="goToLevel4()">Proceed to Level 4 ↗</button>
     </div>
 </div>
 
@@ -407,7 +409,12 @@ async function run() {
     } else {
         document.getElementById('m-status').textContent = 'RESOLVED';
         document.getElementById('m-status').style.color = 'var(--success-color)';
+        document.getElementById('next-level-btn').style.display = 'flex';
     }
+}
+
+function goToLevel4() {
+    window.location.href = 'vital_energy.html';
 }
 
 window.onload = () => {
